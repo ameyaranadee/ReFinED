@@ -1,4 +1,6 @@
+import ast
 import json
+import pandas as pd
 from typing import Iterable
 
 from refined.data_types.doc_types import Doc
@@ -307,3 +309,79 @@ class Datasets:
                     )
                 yield Doc.from_text_with_spans(text=text, spans=spans, preprocessor=self.preprocessor,
                                                md_spans=md_spans)
+
+    def get_wns_train_docs(
+                self,
+                split: str,
+                include_spans: bool = True,
+                include_gold_label: bool = False,
+                filter_not_in_kb: bool = True,
+        ) -> Iterable[Doc]:
+            assert split in ["train", "val"], "wn salience"
+            if split == "train":
+                train_df = pd.read_csv("/work/pi_wenlongzhao_umass_edu/8/james/salient-entity-linking-with-llm/data/wn_salience/splits/WNS_train_QID_KB.csv")
+            else:
+                train_df = pd.read_csv("/work/pi_wenlongzhao_umass_edu/8/james/salient-entity-linking-with-llm/data/wn_salience/splits/WNS_val_QID_KB.csv")
+            #only entries with valid fetched Q ID
+            train_df = train_df[train_df['Q_ID'].notna()]
+
+            article_texts = train_df.drop_duplicates(subset="text", keep="first")["text"].to_list()
+
+            for idx, text in enumerate(article_texts):
+                #filtering by current text
+                mentions = train_df[train_df["text"] == text]
+                dataset_spans = []
+                #looping through mentions for current article
+                for index, mention in mentions.iterrows():
+                    #converting string tuple to tuple
+                    offsets = ast.literal_eval(mention["offsets"])
+
+                    salience_label = None
+                    if "entity_salience" in mention:
+                        salience_val = mention["entity_salience"]
+                        if pd.isna(salience_val):
+                            salience_label = None
+                        elif isinstance(salience_val, (int, float)):
+                            salience_label = float(salience_val)
+                        elif isinstance(salience_val, bool):
+                            salience_label = 1.0 if salience_val else 0.0
+
+                    entity_title = mention.get("entity_title", mention.get("entity title", ""))
+                    
+                    dataset_spans.append(
+                        {
+                            "text": entity_title,
+                            "start": offsets[0],
+                            "end": offsets[1],
+                            "qcode": mention["Q_ID"],
+                            "salience": salience_label
+                        }
+                    )
+                dataset_spans.sort(key=lambda x: x["start"])
+                spans = []
+                md_spans = []
+                for dataset_span in dataset_spans:
+                    md_spans.append(
+                        Span(
+                            start=dataset_span["start"],
+                            ln=dataset_span["end"] - dataset_span["start"],
+                            text=dataset_span["text"],
+                            coarse_type="MENTION"  # All entity types are "MENTION"s in WebQSP (no numerics).
+                        )
+                    )
+                    span = Span(
+                            start=dataset_span["start"],
+                            ln=dataset_span["end"] - dataset_span["start"],
+                            text=dataset_span["text"],
+                            gold_entity=Entity(
+                                wikidata_entity_id=dataset_span["qcode"]) if include_gold_label else None,
+                            coarse_type="MENTION",
+                            gold_salience=dataset_span.get("salience") # salience label from dataset
+                        )
+                    spans.append(span)
+                    
+                yield Doc.from_text_with_spans(
+                    text=text, 
+                    spans=spans, 
+                    preprocessor=self.preprocessor,
+                    md_spans=md_spans)

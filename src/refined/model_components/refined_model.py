@@ -18,6 +18,7 @@ from refined.model_components.ed_layer_2 import EDLayer
 from refined.model_components.entity_disambiguation_layer import EntityDisambiguation
 from refined.model_components.entity_typing_layer import EntityTyping
 from refined.model_components.mention_detection_layer import MentionDetection
+from refined.model_components.salience_layer import SalienceLayer
 from refined.utilities.model_utils import fill_tensor
 from refined.utilities.general_utils import get_logger
 
@@ -75,6 +76,12 @@ class RefinedModel(nn.Module):
             num_classes=self.num_classes,
             encoder_hidden_size=self.transformer_config.hidden_size
         )
+        
+        self.salience_layer: nn.Module = SalienceLayer(
+            dropout=config.ner_layer_dropout
+            # encoder_hidden_size=self.transformer_config.hidden_size
+        )
+
         self.entity_disambiguation: nn.Module = EntityDisambiguation(
             dropout=config.ed_layer_dropout,
             num_classes=self.num_classes,
@@ -125,6 +132,9 @@ class RefinedModel(nn.Module):
 
     def get_et_params(self) -> List[nn.Parameter]:
         return list(self.entity_typing.parameters())
+
+    def get_salience_params(self) -> List[nn.Parameter]:
+        return list(self.salience_layer.parameters())
 
     def get_desc_params(self) -> List[nn.Parameter]:
         return list(self.ed_2.get_parameters_to_scale())
@@ -249,6 +259,8 @@ class RefinedModel(nn.Module):
                     description_loss=None,
                     candidate_description_scores=torch.zeros([num_ents, self.preprocessor.max_candidates + 1],
                                                              device=current_device),
+                    salience_loss=None,
+                    salience_activations=torch.zeros([num_ents], device=current_device),
                 )
                 # return ModelReturn(md_loss, md_activations, None, None, None, None, [], other_spans, None, None, None)
             (
@@ -305,6 +317,18 @@ class RefinedModel(nn.Module):
             entity_mask=entity_mask,
         )
 
+        doc_cls_embeddings = contextualised_embeddings[:, 0, :]
+        entity_batch_indices = []
+        for batch_idx, batch_elem in enumerate(batch_elements):
+            num_ents = len(batch_elem.spans) if batch_elem.spans else 0
+            entity_batch_indices.extend([batch_idx] * num_ents)
+
+        if len(entity_batch_indices) > 0:
+            entity_batch_indices = torch.tensor(entity_batch_indices, device=current_device)
+            mention_doc_embeddings = doc_cls_embeddings[entity_batch_indices]
+        else:
+            mention_doc_embeddings = torch.zeros_like(mention_embeddings)
+
         # candidate_description_scores.shape = (num_ents, num_cands)
         description_loss, candidate_description_scores = self.ed_2(
             candidate_desc=cand_desc,
@@ -316,6 +340,17 @@ class RefinedModel(nn.Module):
         # forward pass of entity typing layer (using predetermined spans if provided else span identified by md layer)
         et_loss, et_activations = self.entity_typing(
             mention_embeddings=mention_embeddings, span_classes=class_targets
+        )
+
+        salience_targets = None
+        if batch.salience_target_values is not None:
+            salience_targets = self._expand_salience_targets(
+                batch.salience_target_values, index_tensor=batch.entity_index_mask_values
+            )
+        salience_loss, salience_activations = self.salience_layer(
+            mention_embeddings=mention_embeddings, 
+            doc_embeddings=mention_doc_embeddings,
+            salience_targets=salience_targets
         )
 
         # forward pass of entity disambiguation layer
@@ -340,6 +375,8 @@ class RefinedModel(nn.Module):
             cand_ids,
             description_loss,
             candidate_description_scores,
+            salience_loss,
+            salience_activations,
         )
 
     def _get_mention_embeddings(
@@ -598,6 +635,14 @@ class RefinedModel(nn.Module):
         snd_idx = torch.arange(num_ents).unsqueeze(1)
         candidates_classes_expanded[first_idx, snd_idx, candidates_classes] = 1
         return candidates_classes_expanded
+
+    def _expand_salience_targets(
+        self, salience_targets: Tensor, index_tensor: Tensor
+    ) -> Optional[Tensor]:
+        """Expand salience targets using entity index mask."""
+        if salience_targets is None or index_tensor is None:
+            return None
+        return salience_targets[index_tensor]
 
     @classmethod
     def from_pretrained(

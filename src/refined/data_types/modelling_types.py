@@ -53,6 +53,7 @@ class BatchElementTns(NamedTuple):
     ] = None  # shape = (ent_len, max_candidates, 32)  32 = description token length
     candidate_desc_emb: Optional[Tensor] = None  # shape = (ent_len, max_candidates, 300)
     # description embedding (precomputed)
+    salience_target_values: Optional[Tensor] = None # shape (num_ents,)
 
 
 class BatchedElementsTns(NamedTuple):
@@ -84,6 +85,7 @@ class BatchedElementsTns(NamedTuple):
     ] = None  # shape = (bs, ent_len, max_candidates, 32)  32 = description token length
     # description embedding (precomputed)
     candidate_desc_emb: Optional[Tensor] = None  # shape = (bs, ent_len, max_candidates, 300)
+    salience_target_values: Optional[Tensor] = None # shape (num_ents,)
 
     def to(self, device: str) -> 'BatchedElementsTns':
         return BatchedElementsTns(
@@ -104,6 +106,8 @@ class ModelReturn(NamedTuple):
     cand_ids: Tensor
     description_loss: Optional[Tensor]
     candidate_description_scores: Tensor
+    salience_loss: Optional[Tensor] = None
+    salience_activations: Optional[Tensor] = None
 
 
 @dataclass

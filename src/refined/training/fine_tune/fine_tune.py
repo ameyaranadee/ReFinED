@@ -78,6 +78,7 @@ def start_fine_tuning_task(refined: 'Refined', train_docs: Iterable[Doc],
         {"params": model.get_et_params(), "lr": fine_tuning_args.lr * 100},
         {"params": model.get_desc_params(), "lr": fine_tuning_args.lr},
         {"params": model.get_ed_params(), "lr": fine_tuning_args.lr * 100},
+        {"params": model.get_salience_params(), "lr": fine_tuning_args.lr},
         {"params": model.get_parameters_not_to_scale(), "lr": fine_tuning_args.lr}
     ]
     if fine_tuning_args.el:
@@ -118,6 +119,8 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
                 loss = output.ed_loss + output.et_loss + (output.description_loss * 0.01)
                 if fine_tuning_args.el:
                     loss += output.md_loss * 0.01
+                if output.salience_loss is not None:
+                    loss += output.salience_loss
                 if fine_tuning_args.gradient_accumulation_steps >= 1:
                     loss = loss / fine_tuning_args.gradient_accumulation_steps
 

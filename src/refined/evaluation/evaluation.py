@@ -109,6 +109,48 @@ def process_annotated_document(
 
     fp_errors_md = sorted(list(pred_spans_md - gold_spans_md), key=lambda x: x[1])[:5]
     fn_errors_md = sorted(list(gold_spans_md - pred_spans_md), key=lambda x: x[1])[:5]
+
+    salience_predictions = []
+    gold_salience_labels = []
+    
+    gold_salience_map = {}
+    for span in doc.spans:
+        if span.gold_salience is not None:
+            gold_salience_map[(span.text, span.start)] = span.gold_salience
+    
+    # Collect predictions and match with gold labels
+    for span in predicted_spans:
+        if span.coarse_type == "MENTION" and span.predicted_salience_score is not None:
+            salience_predictions.append(span.predicted_salience_score)
+            
+            if span.gold_salience is not None:
+                gold_salience_labels.append(span.gold_salience)
+            else:
+                # Try to find matching gold salience label by (text, start) key
+                key = (span.text, span.start)
+                if key in gold_salience_map:
+                    gold_salience_labels.append(gold_salience_map[key])
+                else:
+                    # Try fuzzy matching: check if there's a gold span that overlaps
+                    # (for EL mode where boundaries might differ slightly)
+                    matched = False
+                    for gold_span in doc.spans:
+                        if gold_span.gold_salience is not None:
+                            # Check if spans overlap (within 5 characters tolerance)
+                            if (abs(span.start - gold_span.start) <= 5 and 
+                                span.text.lower().strip() == gold_span.text.lower().strip()):
+                                gold_salience_labels.append(gold_span.gold_salience)
+                                matched = True
+                                break
+                    if not matched:
+                        # No match found - skip this prediction for evaluation
+                        pass
+
+    # After collecting, add debug info
+    if len(salience_predictions) > 0 and len(gold_salience_labels) == 0:
+        LOG.warning(f"No gold salience labels matched! Found {len(salience_predictions)} predictions but 0 gold labels. "
+                   f"Gold spans with salience: {sum(1 for s in doc.spans if s.gold_salience is not None)}")
+
     metrics = Metrics(
         el=el,
         num_gold_spans=num_gold_spans,
@@ -121,7 +163,9 @@ def process_annotated_document(
         gold_entity_in_cand=gold_entity_in_cands,
         num_docs=1,
         example_errors=[{'doc_title': doc.text[:20], 'fp_errors': fp_errors, 'fn_errors': fn_errors}],
-        example_errors_md=[{'doc_title': doc.text[:20], 'fp_errors_md': fp_errors_md, 'fn_errors_md': fn_errors_md}]
+        example_errors_md=[{'doc_title': doc.text[:20], 'fp_errors_md': fp_errors_md, 'fn_errors_md': fn_errors_md}],
+        salience_predictions=salience_predictions,
+        gold_salience_labels=gold_salience_labels
     )
     return metrics
 

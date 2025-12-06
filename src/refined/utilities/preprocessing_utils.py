@@ -159,6 +159,21 @@ def convert_batch_element_to_tensors(
         dtype=torch.long
     )
 
+    salience_target_values = None
+    if batch_element.spans is not None and len(batch_element.spans) > 0:
+    # Check if any span has a gold_salience label
+        has_salience_labels = any(
+            span.gold_salience is not None for span in batch_element.spans
+        )
+        if has_salience_labels:
+            salience_target_values = torch.zeros((num_ents,), dtype=torch.float32)
+            for ent_idx, span in enumerate(batch_element.spans):
+                if span.gold_salience is not None:
+                    salience_target_values[ent_idx] = float(span.gold_salience)
+                else:
+                    # If some spans have labels but this one doesn't, set to 0.0
+                    salience_target_values[ent_idx] = 0.0
+
     return BatchElementTns(
         token_id_values,
         token_acc_sum_values,
@@ -175,7 +190,8 @@ def convert_batch_element_to_tensors(
         candidate_qcode_values,
         ner_labels,
         candidate_desc,
-        candidate_desc_emb=candidate_desc_emb
+        candidate_desc_emb=candidate_desc_emb,
+        salience_target_values=salience_target_values
     )
 
 
@@ -419,6 +435,21 @@ def collate_batch_elements_tns(
         if batch.candidate_qcode_values is not None:
             b_candidate_qcode_values[item_idx, :num_ents] = batch.candidate_qcode_values
 
+    has_salience_targets = any(
+        elem.salience_target_values is not None for elem in batch_elements_tns
+    )
+
+    if has_salience_targets:
+        b_salience_target_values = torch.zeros(
+            (batch_size, b_num_ents), dtype=torch.float32
+        )
+        for elem_idx, elem in enumerate(batch_elements_tns):
+            if elem.salience_target_values is not None:
+                num_ents = elem.salience_target_values.size(0)
+                b_salience_target_values[elem_idx, :num_ents] = elem.salience_target_values
+    else:
+        b_salience_target_values = None
+        
     # unpack example b_pem_values[b_entity_index_mask_values]
     # (bs, num_ents (includes padding as not all docs have same num_ents), num_cands) -> (all_ents, num_cands)
     return BatchedElementsTns(
@@ -437,7 +468,8 @@ def collate_batch_elements_tns(
         b_candidate_qcode_values,
         b_ner_labels,
         candidate_desc=b_candidate_desc,
-        candidate_desc_emb=b_candidate_desc_emb
+        candidate_desc_emb=b_candidate_desc_emb,
+        salience_target_values=b_salience_target_values
     )
 
 

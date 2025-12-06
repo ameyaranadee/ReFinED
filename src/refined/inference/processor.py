@@ -391,6 +391,8 @@ class Refined(object):
                 description_scores[span_idx].tolist(), 4
             )  # matches candidate order
             span.predicted_entity_types = span_to_classes[span_idx]
+            if output.salience_activations is not None:
+                span.predicted_salience_score = output.salience_activations[span_idx].item()
 
         return sorted(spans + predicted_other_spans, key=lambda x: x.start)
 

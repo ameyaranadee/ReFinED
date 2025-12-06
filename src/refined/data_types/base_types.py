@@ -108,7 +108,8 @@ class Span:
     coarse_mention_type: Optional[str] = None  # OntoNotes/spaCy types for mentions (ORG, LOC, PERSON)
     date: Optional[Date] = None  # if the span represents a date this object parses the date
     failed_class_check: Optional[bool] = None  # Indicates predicted class and actual entity class mismatch
-
+    predicted_salience_score: Optional[float] = None  # Salience probability from model
+    gold_salience: Optional[float] = None  # Salience label from dataset
     # can be used to filter candidates to a given set (optional)
     pruned_candidates: Optional[Set[str]] = None
 
