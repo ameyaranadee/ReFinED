@@ -319,9 +319,9 @@ class Datasets:
         ) -> Iterable[Doc]:
             assert split in ["train", "val"], "wn salience"
             if split == "train":
-                train_df = pd.read_csv("/work/pi_wenlongzhao_umass_edu/8/james/salient-entity-linking-with-llm/data/wn_salience/splits/WNS_train_QID_KB.csv")
+                train_df = pd.read_csv("/scratch4/workspace/aranade_umass_edu-sel/ameya/salient-entity-linking/data/wn_salience/WNS_train_QID_KB.csv")
             else:
-                train_df = pd.read_csv("/work/pi_wenlongzhao_umass_edu/8/james/salient-entity-linking-with-llm/data/wn_salience/splits/WNS_val_QID_KB.csv")
+                train_df = pd.read_csv("/scratch4/workspace/aranade_umass_edu-sel/ameya/salient-entity-linking/data/wn_salience/WNS_val_QID_KB.csv")
             #only entries with valid fetched Q ID
             train_df = train_df[train_df['Q_ID'].notna()]
 
