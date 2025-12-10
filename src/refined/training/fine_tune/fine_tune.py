@@ -105,7 +105,6 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
     model = refined.model
     best_f1 = 0.0
     
-    # Skip evaluation if no eval datasets provided
     skip_evaluation = evaluation_dataset_name_to_docs is None or len(evaluation_dataset_name_to_docs) == 0
     if skip_evaluation:
         LOG.info("No evaluation datasets provided - skipping evaluation during training")
@@ -146,7 +145,6 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
             if fine_tuning_args.el and output.md_loss is not None:
                 total_md_loss += output.md_loss.item()
 
-            # Enhanced logging every 10 steps for salience training
             if step % 10 == 9:
                 avg_total_loss = total_loss / (step + 1)
                 avg_salience_loss = total_salience_loss / salience_loss_count if salience_loss_count > 0 else 0.0
@@ -171,20 +169,18 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
                 optimizer.zero_grad()
                 scheduler.step()
 
-            # Skip checkpoint evaluation if no eval datasets
             if not skip_evaluation and (step + 1) % checkpoint_every_n_steps == 0:
                 best_f1 = run_checkpoint_eval_and_save(best_f1, evaluation_dataset_name_to_docs, fine_tuning_args,
                                                        refined, optimizer=optimizer, scaler=scaler,
                                                        scheduler=scheduler)
 
-        # Log epoch summary
+        # Epoch summary
         avg_total_loss = total_loss / len(training_dataloader)
         avg_salience_loss = total_salience_loss / salience_loss_count if salience_loss_count > 0 else 0.0
         LOG.info(f"Epoch {epoch_num} completed - "
                 f"Avg Total Loss: {avg_total_loss:.4f} | "
                 f"Avg Salience Loss: {avg_salience_loss:.4f} ({salience_loss_count}/{len(training_dataloader)} batches had salience targets)")
         
-        # Skip end-of-epoch evaluation if no eval datasets
         if not skip_evaluation:
             best_f1 = run_checkpoint_eval_and_save(best_f1, evaluation_dataset_name_to_docs, fine_tuning_args,
                                                    refined, optimizer=optimizer, scaler=scaler,
