@@ -19,14 +19,14 @@ def create_sample_training_data(refined, num_samples=1000):
     train_docs = list(datasets.get_wns_train_docs("train", include_gold_label=True))
     logger.info(f"Loaded {len(train_docs)} training documents")
 
-    sample_docs = random.sample(train_docs, min(num_samples, len(train_docs)))
-    logger.info(f"Sampled {len(sample_docs)} training documents")
+    # sample_docs = random.sample(train_docs, min(num_samples, len(train_docs)))
+    # logger.info(f"Sampled {len(sample_docs)} training documents")
 
     # eval_docs = list(datasets.get_wns_train_docs("val", include_gold_label=True))
     # eval_sample = random.sample(eval_docs, min(20, len(eval_docs)))
     # logger.info(f"Sampled {len(eval_sample)} evaluation documents")
 
-    return sample_docs
+    return train_docs
 
 def main():
     random.seed(42)
@@ -38,8 +38,9 @@ def main():
     )
 
     train_docs = create_sample_training_data(refined)
+
     ft_args = FineTuningArgs(
-        experiment_name="sample_100_training",
+        experiment_name="full_wns_training",
         device="cuda:0" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu",
         el=True,
         epochs=3,
@@ -48,7 +49,7 @@ def main():
         gradient_accumulation_steps=2,
         num_warmup_steps=10,
         checkpoint_every_n_steps=1000000,
-        output_dir="sample_trained_models"
+        output_dir="full_wns_trained_models"
     )
     fine_tune_on_docs(
         refined=refined,

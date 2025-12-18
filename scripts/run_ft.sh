@@ -5,16 +5,16 @@
 #SBATCH --mem=40G                  # Memory in GB
 #SBATCH --gpus=1                   # Number of GPUs
 #SBATCH --constraint=vram40        # Extra Slurm constraint
-#SBATCH --output=slurm-%j.out      # Standard output and error log
+#SBATCH --output=slurm_logs/slurm-%j.out      # Standard output and error log
 #SBATCH --mail-type=BEGIN,END,FAIL # Notifications for job start, end, and failure
 #SBATCH --mail-user=aranade@umass.edu
 
 module load conda/latest
 conda activate refined38
 
-export PYTHONPATH="${PYTHONPATH}:${PWD}/src"
+export PYTHONPATH="${PWD}/../src:${PYTHONPATH}"
 
 echo "Running job on node: $(hostname)"
 echo "Job ID: $SLURM_JOB_ID"
 
-python3 train_sample.py
+python3 refined_wns_training.py

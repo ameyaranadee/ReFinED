@@ -181,7 +181,11 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
                 f"Avg Total Loss: {avg_total_loss:.4f} | "
                 f"Avg Salience Loss: {avg_salience_loss:.4f} ({salience_loss_count}/{len(training_dataloader)} batches had salience targets)")
         
-        if not skip_evaluation:
+        if skip_evaluation:
+            # Force save at the end of each epoch
+            model_output_dir = os.path.join(fine_tuning_args.output_dir, fine_tuning_args.experiment_name, f"epoch_{epoch_num}")
+            save_model(model_output_dir=model_output_dir, refined=refined, fine_tuning_args=fine_tuning_args, optimizer=optimizer, scheduler=scheduler, scaler=scaler)
+        else:
             best_f1 = run_checkpoint_eval_and_save(best_f1, evaluation_dataset_name_to_docs, fine_tuning_args,
                                                    refined, optimizer=optimizer, scaler=scaler,
                                                    scheduler=scheduler)
@@ -230,6 +234,24 @@ def run_checkpoint_eval_and_save(best_f1: float, evaluation_dataset_name_to_docs
     torch.cuda.empty_cache()
     return best_f1
 
+def save_model(model_output_dir: str, refined: Refined, fine_tuning_args: TrainingArgs, 
+               optimizer: AdamW, scheduler, scaler: GradScaler):
+    """Saves the model and training state to disk."""
+    if os.path.exists(model_output_dir):
+        shutil.rmtree(model_output_dir)
+    os.makedirs(model_output_dir, exist_ok=True)
+    
+    LOG.info(f"Storing model at {model_output_dir}...")
+    model_to_save = (
+        refined.model.module if hasattr(refined.model, "module") else refined.model
+    )
+    torch.save(model_to_save.state_dict(), os.path.join(model_output_dir, "model.pt"))
+    fine_tuning_args.to_file(os.path.join(model_output_dir, "fine_tuning_args.json"))
+    model_to_save.config.to_file(os.path.join(model_output_dir, "config.json"))
+
+    torch.save(optimizer.state_dict(), os.path.join(model_output_dir, "optimizer.pt"))
+    torch.save(scheduler.state_dict(), os.path.join(model_output_dir, "scheduler.pt"))
+    torch.save(scaler.state_dict(), os.path.join(model_output_dir, "scaler.pt"))
 
 def fine_tune_on_docs(refined: Refined, train_docs: Iterable[Doc], eval_docs: Iterable[Doc] = None,
                       fine_tuning_args: Optional[FineTuningArgs] = None):
