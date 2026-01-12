@@ -2,10 +2,13 @@
 *.txt
 *.out
 sample_trained_models/
-dist/
+ReFinED/dist
 *.whl
 *.egg-info/
 __pycache__/
+finetuned_models/
+~/
+outputs/
 
 # PyCharm #
 *.iml

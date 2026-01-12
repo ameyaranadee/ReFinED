@@ -469,7 +469,7 @@ def collate_batch_elements_tns(
         b_ner_labels,
         candidate_desc=b_candidate_desc,
         candidate_desc_emb=b_candidate_desc_emb,
-        salience_target_values=b_salience_target_values
+        # salience_target_values=b_salience_target_values
     )
 
 

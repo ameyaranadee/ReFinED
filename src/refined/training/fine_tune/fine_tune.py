@@ -105,10 +105,6 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
     model = refined.model
     best_f1 = 0.0
     
-    skip_evaluation = evaluation_dataset_name_to_docs is None or len(evaluation_dataset_name_to_docs) == 0
-    if skip_evaluation:
-        LOG.info("No evaluation datasets provided - skipping evaluation during training")
-    
     for epoch_num in trange(fine_tuning_args.epochs):
         torch.cuda.empty_cache()
         optimizer.zero_grad()
@@ -132,8 +128,7 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
                 if fine_tuning_args.el:
                     loss += output.md_loss * 0.01
                 if output.salience_loss is not None:
-                    loss += output.salience_loss
-                    total_salience_loss += output.salience_loss.item()
+                    loss += output.salience_loss * 0.01
                     salience_loss_count += 1
                 if fine_tuning_args.gradient_accumulation_steps >= 1:
                     loss = loss / fine_tuning_args.gradient_accumulation_steps
@@ -142,6 +137,7 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
             total_loss += loss.item()
             total_ed_loss += output.ed_loss.item() if output.ed_loss is not None else 0.0
             total_et_loss += output.et_loss.item() if output.et_loss is not None else 0.0
+            total_salience_loss += output.salience_loss.item() if output.salience_loss is not None else 0.0
             if fine_tuning_args.el and output.md_loss is not None:
                 total_md_loss += output.md_loss.item()
 
@@ -169,7 +165,7 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
                 optimizer.zero_grad()
                 scheduler.step()
 
-            if not skip_evaluation and (step + 1) % checkpoint_every_n_steps == 0:
+            if evaluation_dataset_name_to_docs and (step + 1) % checkpoint_every_n_steps == 0:
                 best_f1 = run_checkpoint_eval_and_save(best_f1, evaluation_dataset_name_to_docs, fine_tuning_args,
                                                        refined, optimizer=optimizer, scaler=scaler,
                                                        scheduler=scheduler)
@@ -181,11 +177,7 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
                 f"Avg Total Loss: {avg_total_loss:.4f} | "
                 f"Avg Salience Loss: {avg_salience_loss:.4f} ({salience_loss_count}/{len(training_dataloader)} batches had salience targets)")
         
-        if skip_evaluation:
-            # Force save at the end of each epoch
-            model_output_dir = os.path.join(fine_tuning_args.output_dir, fine_tuning_args.experiment_name, f"epoch_{epoch_num}")
-            save_model(model_output_dir=model_output_dir, refined=refined, fine_tuning_args=fine_tuning_args, optimizer=optimizer, scheduler=scheduler, scaler=scaler)
-        else:
+        if evaluation_dataset_name_to_docs:
             best_f1 = run_checkpoint_eval_and_save(best_f1, evaluation_dataset_name_to_docs, fine_tuning_args,
                                                    refined, optimizer=optimizer, scaler=scaler,
                                                    scheduler=scheduler)
