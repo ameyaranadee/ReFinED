@@ -79,7 +79,6 @@ class RefinedModel(nn.Module):
         
         self.salience_layer: nn.Module = SalienceLayer(
             dropout=config.ner_layer_dropout
-            # encoder_hidden_size=self.transformer_config.hidden_size
         )
 
         self.entity_disambiguation: nn.Module = EntityDisambiguation(

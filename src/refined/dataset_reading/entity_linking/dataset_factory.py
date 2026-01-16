@@ -321,7 +321,7 @@ class Datasets:
             if split == "train":
                 train_df = pd.read_csv("/scratch4/workspace/aranade_umass_edu-sel/wns-qid-splits/WNS_train_QID.csv")
             else:
-                train_df = pd.read_csv("/scratch4/workspace/aranade_umass_edu-sel/ameya/salient-entity-linking/data/wn_salience/WNS_val_QID_KB.csv")
+                train_df = pd.read_csv("/scratch4/workspace/aranade_umass_edu-sel/wns-qid-splits/WNS_val_QID.csv")
             #only entries with valid fetched Q ID
             train_df = train_df[train_df['Q_ID'].notna()]
 

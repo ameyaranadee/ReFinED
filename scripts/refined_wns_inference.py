@@ -30,8 +30,8 @@ class RefinedInference:
                 if span.candidate_entities:
                     candidate_entities_str = str(span.candidate_entities)
 
-                # salience_score = span.predicted_salience_score if span.predicted_salience_score is not None else 0.0
-                # salience_label = 1 if salience_score > 0.5 else 0
+                salience_score = span.predicted_salience_score if span.predicted_salience_score is not None else 0.0
+                salience_label = 1 if salience_score > 0.5 else 0
                 
                 span_dict = {
                     'text': row['text'],
@@ -44,8 +44,8 @@ class RefinedInference:
                     'candidate_entities': candidate_entities_str, # list oftuples (wikidata_Q_ID, confidence score)
                     'start': span.start,
                     'end': span.start + span.ln,
-                    # 'predicted_salience_score': salience_score,
-                    # 'predicted_salience_label': salience_label,
+                    'predicted_salience_score': salience_score,
+                    'predicted_salience_label': salience_label,
                 }
                 spans_df.append(span_dict)
         self.logger.info(f"Processed {len(spans_df)} spans")

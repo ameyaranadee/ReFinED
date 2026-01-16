@@ -30,8 +30,8 @@ class SalienceLayer(nn.Module):
         :return: loss tensor (if salience_targets is provided), salience probabilities
             shape: (num_entities,) with values in [0, 1] representing probability of being salient
         """
-        print(f"mention_embeddings.shape: {mention_embeddings.shape}", flush=True)
-        print(f"doc_embeddings.shape: {doc_embeddings.shape}", flush=True)
+        # print(f"mention_embeddings.shape: {mention_embeddings.shape}", flush=True)
+        # print(f"doc_embeddings.shape: {doc_embeddings.shape}", flush=True)
 
         mention_embeddings = self.dropout(mention_embeddings)
         doc_embeddings = self.dropout(doc_embeddings)

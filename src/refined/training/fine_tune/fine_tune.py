@@ -128,7 +128,7 @@ def run_fine_tuning_loops(refined: Refined, fine_tuning_args: TrainingArgs, trai
                 if fine_tuning_args.el:
                     loss += output.md_loss * 0.01
                 if output.salience_loss is not None:
-                    loss += output.salience_loss * 0.01
+                    loss += output.salience_loss
                     salience_loss_count += 1
                 if fine_tuning_args.gradient_accumulation_steps >= 1:
                     loss = loss / fine_tuning_args.gradient_accumulation_steps
