@@ -14,17 +14,20 @@ class SalienceLayer(nn.Module):
         """
         super().__init__()
         self.dropout = nn.Dropout(dropout)
+        self.entity_projection = nn.Linear(entity_dim, encoder_hidden_size) # (768, 300)
         
     def forward(
         self,
-        mention_embeddings: Tensor,
+        # mention_embeddings: Tensor,
+        entity_embeddings: Tensor,
         doc_embeddings: Tensor,
         salience_targets: Optional[Tensor] = None
     ) -> Tuple[Optional[Tensor], Tensor]:
         """
         Forward pass of Salience layer.
         :param mention_embeddings: mention embeddings (num_entities, encoder_hidden_size)
-        :param doc_embeddings: document embeddings (num_entities, encoder_hidden_size)
+        :param entity_embeddings: KB entity embeddings (num_entities, entity_dim=300)
+        :param doc_embeddings: document embeddings (num_entities, encoder_hidden_size=768)
         :param salience_targets: binary salience targets for training
             shape: (num_entities,) with values in {0.0, 1.0} where 1.0 = salient
         :return: loss tensor (if salience_targets is provided), salience probabilities
@@ -33,10 +36,14 @@ class SalienceLayer(nn.Module):
         # print(f"mention_embeddings.shape: {mention_embeddings.shape}", flush=True)
         # print(f"doc_embeddings.shape: {doc_embeddings.shape}", flush=True)
 
-        mention_embeddings = self.dropout(mention_embeddings)
+        # mention_embeddings = self.dropout(mention_embeddings)
+        entity_embeddings = self.entity_projection(entity_embeddings)
+        entity_embeddings = self.dropout(entity_embeddings)
+
         doc_embeddings = self.dropout(doc_embeddings)
         
-        logits = torch.sum(mention_embeddings * doc_embeddings, dim=1) # (num_entities,)
+        # logits = torch.sum(mention_embeddings * doc_embeddings, dim=1) # (num_entities,)
+        logits = torch.sum(entity_embeddings * doc_embeddings, dim=1)
         salience_probs = torch.sigmoid(logits)
 
         if salience_targets is not None:

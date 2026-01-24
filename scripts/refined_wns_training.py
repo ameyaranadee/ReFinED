@@ -43,7 +43,7 @@ def main():
     train_docs, eval_docs = load_data(refined)
 
     ft_args = FineTuningArgs(
-        experiment_name="ReFinED-EL-FT-WNS-260115",
+        experiment_name="ReFinED-Wikipedia_EL-SSP-FT-on-WNS_Mention-Article-CE-SSP-1.1_260124",
         device="cuda:0" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu",
         el=True,
         epochs=5,

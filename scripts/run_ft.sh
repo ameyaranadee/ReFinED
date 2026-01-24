@@ -18,5 +18,5 @@ echo "Running job on node: $(hostname)"
 echo "Job ID: $SLURM_JOB_ID"
 
 python3 refined_wns_training.py \
-    --model_name wikipedia_model \
+    --model_name /scratch4/workspace/aranade_umass_edu-sel/ameya/ReFinED/finetuned_models/EL_WNS_FT/EL_WNS_FT_260107/f1_0.3822 \
     --entity_set wikipedia

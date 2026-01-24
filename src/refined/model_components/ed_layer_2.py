@@ -127,9 +127,9 @@ class EDLayer(nn.Module):
             # Q2 - if gold candidate has no description
             # Answer - should make NOTA (no_cand_score) the correct answer
             #          because none of the provided descriptions match the gold entity
-            return loss, F.softmax(scores, dim=-1)
+            return loss, F.softmax(scores, dim=-1), candidate_entity_embeddings
         else:
-            return None, F.softmax(scores, dim=-1)  # output (num_ents, num_cands + 1)
+            return None, F.softmax(scores, dim=-1), candidate_entity_embeddings  # output (num_ents, num_cands + 1)
 
     def init_weights(self):
         """Initialize weights for all member variables with type nn.Module"""

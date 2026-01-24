@@ -78,7 +78,9 @@ class RefinedModel(nn.Module):
         )
         
         self.salience_layer: nn.Module = SalienceLayer(
-            dropout=config.ner_layer_dropout
+            dropout=config.ner_layer_dropout,
+            entity_dim=300,
+            encoder_hidden_size=self.transformer_config.hidden_size
         )
 
         self.entity_disambiguation: nn.Module = EntityDisambiguation(
@@ -329,12 +331,24 @@ class RefinedModel(nn.Module):
             mention_doc_embeddings = torch.zeros_like(mention_embeddings)
 
         # candidate_description_scores.shape = (num_ents, num_cands)
-        description_loss, candidate_description_scores = self.ed_2(
+        description_loss, candidate_description_scores, candidate_entity_embeddings = self.ed_2(
             candidate_desc=cand_desc,
             mention_embeddings=mention_embeddings,
             candidate_entity_targets=candidate_entity_targets,
             candidate_desc_emb=cand_desc_emb,
         )
+        num_ents = candidate_entity_embeddings.size(0)
+        if candidate_entity_targets is not None:
+            gold_indices = candidate_entity_targets[:, :-1].argmax(dim=1)
+            entity_embeddings = candidate_entity_embeddings[
+                torch.arange(num_ents, device=current_device), gold_indices
+            ]
+        else:
+            top_indices = candidate_description_scores[:, :-1].argmax(dim=1)
+            entity_embeddings = candidate_entity_embeddings[
+                torch.arange(num_ents, device=current_device), top_indices
+            ]
+
 
         # forward pass of entity typing layer (using predetermined spans if provided else span identified by md layer)
         et_loss, et_activations = self.entity_typing(
@@ -347,7 +361,8 @@ class RefinedModel(nn.Module):
                 batch.salience_target_values, index_tensor=batch.entity_index_mask_values
             )
         salience_loss, salience_activations = self.salience_layer(
-            mention_embeddings=mention_embeddings, 
+            # mention_embeddings=mention_embeddings,
+            entity_embeddings=entity_embeddings, 
             doc_embeddings=mention_doc_embeddings,
             salience_targets=salience_targets
         )
